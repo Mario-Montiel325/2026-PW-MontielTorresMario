@@ -6,7 +6,7 @@ body {
     font-family: 'Courier New', Courier, monospace;
     color: #1f2937;
     background-color: #f9fafb;
- 
+
 }
 header {
     background-color: #1f2937;
@@ -14,45 +14,45 @@ header {
     padding: 1rem;
     text-align: center;
 }
- 
+
 header a {
     color: #FFFF;
- 
+
 }
- 
+
 main {
     max-width: 960px;
     margin: 0 auto;
     padding: 1.5rem;
 }
- 
+
 footer {
     text-align: center;
     padding: 1rem;
     color: #6b7286;
     font-size: 0.875rem;
 }
- 
+
 .catalogo {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
 }
- 
+
 .tarjeta {
     background-color: #ffff;
     border: 1px solid;
     border-radius: 0.5rem;
     padding: 1rem;
- 
+
 }
- 
+
 .tarjeta h2{
     margin-top: 0;
     font-size: 1.1rem;
- 
+
 }
- 
+
 .tarjeta a:hover {
     text-decoration: underline;
 }
