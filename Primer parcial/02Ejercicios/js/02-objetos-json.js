@@ -2,10 +2,10 @@
 // Object.keys/values/entries y JSON.stringify/parse. Completa cada TODO.
 
 const taller = {
-  nombre: 'Introducción a Python',
-  instructor: 'Ing. María López',
-  cupo: 25,
-  inscritos: 25,
+    nombre: 'Introducción a Python',
+    instructor: 'Ing. María López',
+    cupo: 25,
+    inscritos: 25,
 };
 
 // TODO: Object.keys — imprime solo los nombres de las propiedades de `taller`
