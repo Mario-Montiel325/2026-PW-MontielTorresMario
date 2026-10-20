@@ -1,19 +1,5 @@
 const pool = require('../bd-local');
 
-//consultar todos los talleres
-async function listarTalleres() {
-    const [filas] = await pool.query('SELECT id, nombre, descripcion, cupo FROM talleres ORDER BY id');
-    return filas;
-}
-
-//registrar alumno al taller
-async function registrarAlumno({usuario_id, taller_id}) {
-    const [info] = await pool.query(
-        'INSERT INTO taller_alumnos (usuario_id, taller_id) VALUES (?, ?)', [usuario_id, taller_id]
-    );
-    return {id: info.insertId, usuario_id, taller_id};
-}
-
 //registrar asistencia
 async function registrarAsistencia({usuario_id, taller_id, fecha}) {
     const [info] = await pool.query(
@@ -35,4 +21,21 @@ async function consultarAsistenciaTaller(taller_id) {
     return filas;
 }
 
+//consultar asistencia de un alumno
+async function consultarAsistenciaAlumno(usuario_id) {
+    const [filas] = await pool.query(`
+        SELECT a.id, a.fecha, t.id AS taller_id, t.nombre AS taller
+        FROM asistencia a
+        JOIN talleres t ON t.id = a.taller_id
+        WHERE a.usuario_id = ?
+        ORDER BY a.fecha DESC, t.nombre`, [usuario_id]);
+    return filas;
+}
 
+//eliminar asistencia
+async function eliminarAsistencia(id) {
+    const [info] = await pool.query('DELETE FROM asistencia WHERE id = ?', [id]);
+    return info.affectedRows > 0;
+}
+
+module.exports = {registrarAsistencia, consultarAsistenciaTaller, consultarAsistenciaAlumno, eliminarAsistencia}

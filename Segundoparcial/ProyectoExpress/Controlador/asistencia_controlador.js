@@ -1,4 +1,4 @@
-const asistenciaModel = require('../Modelo/talleresyasistencia_modelo');
+const asistenciaModel = require('../Modelo/asistencia_modelo');
 
 async function registrarAsistencia(req, res) {
     const {usuario_id, taller_id, fecha} = req.body;
@@ -24,3 +24,23 @@ async function consultarAsistenciaTaller(req, res) {
     }
 }
 
+async function consultarAsistenciaAlumno(req, res) {
+    try{
+        const asistencia = await asistenciaModel.consultarAsistenciaAlumno(req.params.id);
+        res.json(asistencia);
+    }catch(error){
+        res.status(500).json({error: error.message});
+    }
+}
+
+async function eliminarAsistencia(req, res) {
+    try{
+        const eliminado = await asistenciaModel.eliminarAsistencia(req.params.id);
+        if(!eliminado) return res.status(404).json({error: 'No se encontro la asistencia'});
+        res.status(204).send();
+    }catch(error){
+        res.status(500).json({error: error.message});
+    }
+}
+
+module.exports = {registrarAsistencia, consultarAsistenciaTaller, consultarAsistenciaAlumno, eliminarAsistencia}
