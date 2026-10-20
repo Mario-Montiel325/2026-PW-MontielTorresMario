@@ -5,7 +5,7 @@ const usuariosModel = require('../Modelo/usuarios_modelo');
 const {validarCorreo, validarBoleta, validarContrasena} = require('../validaciones');
 
 function esDuplicado(error){
-    return error.code === 'ER_DEP_ENTRY' || error.code === '23505';
+    return error.code === 'ER_DUP_ENTRY' || error.code === '23505';
 }
 
 
@@ -13,7 +13,7 @@ async function listarUsuarios(req, res) {
     try{
         const usuarios = await usuariosModel.listar();
         res.json(usuarios);
-    }catch{
+    }catch(error){
         res.status(500).json({error: error.message});
     }
 }
@@ -56,7 +56,7 @@ async function crearUsuario(req,res) {
 async function actualizarUsuario(req, res) {
     const {nombre, correo, rol} = req.body;
 
-    if(nombre === undefined && coreo === undefined && rol === undefined){
+    if(nombre === undefined && correo === undefined && rol === undefined){
         return res.status(400).json({error: 'Se debe de llenar almenos uno de los campos de nombre, correo o rol para actualizar los datos'});
     }
     if(correo !== undefined && !validarCorreo(correo)){
@@ -68,7 +68,7 @@ async function actualizarUsuario(req, res) {
         if(!usuario) return res.status(404).json({error : 'Usuario no encontrado'});
         res.json(usuario);
     } catch(error){
-        if(esDuplicado(error)) return res.status(400).json({error : 'Ya existe un usuario con ese correo'});
+        if(esDuplicado(error)) return res.status(409).json({error : 'Ya existe un usuario con ese correo'});
         res.status(500).json({error : error.message})
     }
 }
