@@ -1,5 +1,13 @@
 const talleresModel = require('../Modelo/talleres_modelo');
 
+function cupoInvalido(cupo){
+    return cupo !== undefined && (!Number.isInteger(cupo) || cupo <= 0);
+}
+
+function fechaInvalida(error){
+    return error.code === 'ER_TRUNCATED_WRONG_VALUE' || error.code === 'ER_WRONG_VALUE';
+}
+
 async function listarTalleres(req, res) {
     try{
         const talleres = await talleresModel.listarTalleres();
@@ -20,35 +28,37 @@ async function obtenerTaller(req, res) {
 }
 
 async function crearTaller(req, res) {
-    const {nombre, descripcion, cupo} = req.body;
-    if(!nombre){
-        return res.status(400).json({error: 'El nombre del taller es obligatorio'});
+    const {nombre, instructor, fecha, cupo} = req.body;
+    if(!nombre || !fecha){
+        return res.status(400).json({error: 'nombre y fecha son obligatorios'});
     }
-    if(cupo !== undefined && (!Number.isInteger(cupo) || cupo <= 0)){
+    if(cupoInvalido(cupo)){
         return res.status(400).json({error: 'El cupo debe ser un número entero mayor a 0'});
     }
     try{
-        const taller = await talleresModel.crearTaller({nombre, descripcion, cupo});
+        const taller = await talleresModel.crearTaller({nombre, instructor, fecha, cupo});
         res.status(201).json(taller);
     }catch(error){
+        if(fechaInvalida(error)) return res.status(400).json({error: 'La fecha no es válida (usa AAAA-MM-DD)'});
         if(error.code === 'ER_DUP_ENTRY') return res.status(409).json({error: 'Ya existe un taller con ese nombre'});
         res.status(500).json({error: error.message});
     }
 }
 
 async function actualizarTaller(req, res) {
-    const {nombre, descripcion, cupo} = req.body;
-    if(nombre === undefined && descripcion === undefined && cupo === undefined){
-        return res.status(400).json({error: 'Se debe de llenar al menos uno de los campos nombre, descripcion o cupo'});
+    const {nombre, instructor, fecha, cupo} = req.body;
+    if(nombre === undefined && instructor === undefined && fecha === undefined && cupo === undefined){
+        return res.status(400).json({error: 'Envía al menos uno de: nombre, instructor, fecha, cupo'});
     }
-    if(cupo !== undefined && (!Number.isInteger(cupo) || cupo <= 0)){
+    if(cupoInvalido(cupo)){
         return res.status(400).json({error: 'El cupo debe ser un número entero mayor a 0'});
     }
     try{
-        const taller = await talleresModel.actualizarTaller(req.params.id, {nombre, descripcion, cupo});
+        const taller = await talleresModel.actualizarTaller(req.params.id, {nombre, instructor, fecha, cupo});
         if(!taller) return res.status(404).json({error: 'Taller no encontrado'});
         res.json(taller);
     }catch(error){
+        if(fechaInvalida(error)) return res.status(400).json({error: 'La fecha no es válida (usa AAAA-MM-DD)'});
         if(error.code === 'ER_DUP_ENTRY') return res.status(409).json({error: 'Ya existe un taller con ese nombre'});
         res.status(500).json({error: error.message});
     }
@@ -57,38 +67,12 @@ async function actualizarTaller(req, res) {
 async function eliminarTaller(req, res) {
     try{
         const eliminado = await talleresModel.eliminarTaller(req.params.id);
-        if(!eliminado) return res.status(404).json({error: 'No se encontro el taller'});
+        if(!eliminado) return res.status(404).json({error: 'Taller no encontrado'});
         res.status(204).send();
     }catch(error){
-        if(error.code === 'ER_ROW_IS_REFERENCED_2') return res.status(409).json({error: 'El taller tiene alumnos o asistencias registradas'});
+        if(error.code === 'ER_ROW_IS_REFERENCED_2') return res.status(409).json({error: 'El taller tiene asistencias registradas'});
         res.status(500).json({error: error.message});
     }
 }
 
-async function registrarAlumno(req, res) {
-    const {usuario_id, taller_id} = req.body;
-    if(!usuario_id || !taller_id){
-        return res.status(400).json({error: 'usuario_id y taller_id son obligatorios'});
-    }
-    try{
-        const inscripcion = await talleresModel.registrarAlumno({usuario_id, taller_id});
-        res.status(201).json(inscripcion);
-    }catch(error){
-        if(error.code === 'ER_DUP_ENTRY') return res.status(409).json({error: 'El alumno ya está inscrito en este taller'});
-        if(error.code === 'ER_NO_REFERENCED_ROW_2') return res.status(404).json({error: 'Alumno o taller no encontrado'});
-        res.status(500).json({error: error.message});
-    }
-}
-
-async function listarAlumnosTaller(req, res) {
-    try{
-        const taller = await talleresModel.obtenerTallerPorId(req.params.id);
-        if(!taller) return res.status(404).json({error: 'Taller no encontrado'});
-        const alumnos = await talleresModel.listarAlumnosTaller(req.params.id);
-        res.json(alumnos);
-    }catch(error){
-        res.status(500).json({error: error.message});
-    }
-}
-
-module.exports = {listarTalleres, obtenerTaller, crearTaller, actualizarTaller, eliminarTaller, registrarAlumno, listarAlumnosTaller}
+module.exports = {listarTalleres, obtenerTaller, crearTaller, actualizarTaller, eliminarTaller}

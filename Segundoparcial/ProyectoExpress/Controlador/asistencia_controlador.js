@@ -1,16 +1,15 @@
 const asistenciaModel = require('../Modelo/asistencia_modelo');
 
 async function registrarAsistencia(req, res) {
-    const {usuario_id, taller_id, fecha} = req.body;
-    if(!usuario_id || !taller_id){
-        return res.status(400).json({error: 'usuario_id y taller_id son obligatorios'});
+    const {taller_id, nombre_alumno, boleta} = req.body;
+    if(!taller_id || !nombre_alumno || !boleta){
+        return res.status(400).json({error: 'taller_id, nombre_alumno y boleta son obligatorios'});
     }
     try{
-        const asistencia = await asistenciaModel.registrarAsistencia({usuario_id, taller_id, fecha});
+        const asistencia = await asistenciaModel.registrarAsistencia({taller_id, nombre_alumno, boleta});
         res.status(201).json(asistencia);
     }catch(error){
-        if(error.code === 'ER_DUP_ENTRY') return res.status(409).json({error: 'La asistencia de ese día ya está registrada'});
-        if(error.code === 'ER_NO_REFERENCED_ROW_2') return res.status(404).json({error: 'Alumno o taller no encontrado'});
+        if(error.code === 'ER_DUP_ENTRY') return res.status(409).json({error: 'Esa asistencia ya está registrada'});
         res.status(500).json({error: error.message});
     }
 }
@@ -26,7 +25,7 @@ async function consultarAsistenciaTaller(req, res) {
 
 async function consultarAsistenciaAlumno(req, res) {
     try{
-        const asistencia = await asistenciaModel.consultarAsistenciaAlumno(req.params.id);
+        const asistencia = await asistenciaModel.consultarAsistenciaAlumno(req.params.boleta);
         res.json(asistencia);
     }catch(error){
         res.status(500).json({error: error.message});
