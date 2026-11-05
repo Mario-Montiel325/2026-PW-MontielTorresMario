@@ -10,5 +10,6 @@ router.post('/', talleres.crearTaller);
 router.put('/:id', talleres.actualizarTaller);
 router.delete('/:id', talleres.eliminarTaller);
 router.get('/:id/asistencias', asistencia.consultarAsistenciaTaller);
+router.delete('/:id/asistencias/:boleta', asistencia.quitarAlumno);
 
 module.exports = router;

@@ -44,13 +44,23 @@ async function eliminar(id) {
         return info.affectedRows > 0;
 }
 
+async function buscarPorBoleta(boleta) {
+    const [filas] = await pool.query(`SELECT ${COLUMNAS_PUBLICAS} FROM usuarios WHERE boleta = ?`, [boleta]);
+    return filas[0];
+}
+
+async function buscarPorCorreo(correo) {
+    const [filas] = await pool.query(`SELECT ${COLUMNAS_PUBLICAS} FROM usuarios WHERE LOWER(correo) = LOWER(?)`, [correo]);
+    return filas[0];
+}
+
 //buscar por correo hash
 async function buscarPorCorreoConHash(correo) {
         const [filas] = await pool.query('SELECT * FROM usuarios WHERE correo = ?', [correo]);
         return filas[0];
 }
 
-module.exports = {listar, obtenerPorId, crear, actualizar, eliminar, buscarPorCorreoConHash}
+module.exports = {listar, obtenerPorId, crear, actualizar, eliminar, buscarPorBoleta, buscarPorCorreo, buscarPorCorreoConHash}
 
 //deberan de crear Los modelos de Las tablas talleres y asistencia
 //taller tiene registraralumno al taller, consultar todos los talleres

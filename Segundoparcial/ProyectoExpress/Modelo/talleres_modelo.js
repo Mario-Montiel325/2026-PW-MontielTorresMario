@@ -1,19 +1,34 @@
 const crypto = require('crypto');
 const pool = require('../bd-local');
 
-const COLUMNAS_TALLER = 'id, nombre, instructor, fecha, cupo, created_at';
-
 async function listarTalleres() {
-    const [filas] = await pool.query(`SELECT ${COLUMNAS_TALLER} FROM talleres ORDER BY fecha, nombre`);
+    const [filas] = await pool.query(`
+        SELECT t.id, t.nombre, t.instructor, t.fecha, t.cupo, t.created_at,
+            (SELECT COUNT(DISTINCT a.boleta) FROM asistencias a WHERE a.taller_id = t.id) AS asistentes
+        FROM talleres t
+        ORDER BY t.fecha, t.nombre`);
     return filas;
 }
 
 async function obtenerTallerPorId(id) {
     const [filas] = await pool.query(`
         SELECT t.id, t.nombre, t.instructor, t.fecha, t.cupo, t.created_at,
-            (SELECT COUNT(*) FROM asistencias a WHERE a.taller_id = t.id) AS asistentes
+            (SELECT COUNT(DISTINCT a.boleta) FROM asistencias a WHERE a.taller_id = t.id) AS asistentes
         FROM talleres t
         WHERE t.id = ?`, [id]);
+    return filas[0];
+}
+
+async function buscarPorNombre(nombre) {
+    const [filas] = await pool.query('SELECT id, nombre FROM talleres WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))', [nombre]);
+    return filas[0];
+}
+
+async function buscarPorInstructorYFecha(instructor, fecha, excluirId) {
+    const [filas] = await pool.query(`
+        SELECT id, nombre, instructor FROM talleres
+        WHERE LOWER(TRIM(instructor)) = LOWER(TRIM(?)) AND fecha = ? AND id <> ?
+        LIMIT 1`, [instructor, fecha, excluirId ?? '']);
     return filas[0];
 }
 
@@ -42,4 +57,4 @@ async function eliminarTaller(id) {
     return info.affectedRows > 0;
 }
 
-module.exports = {listarTalleres, obtenerTallerPorId, crearTaller, actualizarTaller, eliminarTaller}
+module.exports = {listarTalleres, obtenerTallerPorId, buscarPorNombre, buscarPorInstructorYFecha, crearTaller, actualizarTaller, eliminarTaller}

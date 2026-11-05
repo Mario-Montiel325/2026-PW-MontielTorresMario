@@ -1,13 +1,10 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { pedirJSON } from '../lib/api';
-import { formatearFecha } from '../lib/formato';
+import { formatearFecha, yaEmpezo, yaPaso } from '../lib/formato';
 import { validarBoleta } from '../lib/validaciones';
 import estilos from '../styles/Talleres.module.css';
 
-// /perfil — el alumno escribe su boleta y ve sus datos, sus talleres y los talleres con lugar.
-// Todavía no hay login (llega en la semana 10): por eso se busca por boleta.
-// PASO 6: GET /api/usuarios, GET /api/talleres y GET /api/talleres/:id/asistencias (uno por taller).
 export default function Perfil() {
   const [boleta, setBoleta] = useState('');
   const [buscada, setBuscada] = useState('');
@@ -27,19 +24,17 @@ export default function Perfil() {
 
     setCargando(true);
     try {
-      const usuarios = await pedirJSON('/usuarios');
-      const talleres = await pedirJSON('/talleres');
-      const listas = await Promise.all(talleres.map((t) => pedirJSON(`/talleres/${t.id}/asistencias`)));
-      const conAsistencias = talleres.map((t, i) => ({ ...t, asistencias: listas[i] }));
+      const [usuarios, talleres, mios] = await Promise.all([
+        pedirJSON('/usuarios'),
+        pedirJSON('/talleres'),
+        pedirJSON(`/asistencias/alumno/${b}`),
+      ]);
 
-      const mios = conAsistencias.filter((t) => t.asistencias.some((a) => a.boleta === b));
-      const conLugar = conAsistencias.filter(
-        (t) => !mios.includes(t) && t.asistencias.length < t.cupo
-      );
-      const inscripcion = mios.length > 0 ? mios[0].asistencias.find((a) => a.boleta === b) : null;
+      const idsMios = new Set(mios.map((a) => a.taller_id));
+      const conLugar = talleres.filter((t) => !idsMios.has(t.id) && !yaEmpezo(t.fecha) && t.asistentes < t.cupo);
 
       setAlumno(usuarios.find((u) => u.boleta === b) || null);
-      setNombreInscrito(inscripcion ? inscripcion.nombre_alumno : '');
+      setNombreInscrito(mios.length > 0 ? mios[0].nombre_alumno : '');
       setMisTalleres(mios);
       setDisponibles(conLugar);
       setBuscada(b);
@@ -51,6 +46,13 @@ export default function Perfil() {
   }
 
   const nombre = alumno ? alumno.nombre : nombreInscrito;
+
+  function estadoTaller(a) {
+    if (a.llegada_id) return 'Fuiste';
+    if (yaPaso(a.fecha)) return 'No fuiste';
+    if (yaEmpezo(a.fecha)) return 'Es hoy';
+    return 'Inscrito';
+  }
 
   return (
     <main>
@@ -75,7 +77,7 @@ export default function Perfil() {
               <p>
                 La boleta {buscada} no tiene cuenta registrada
                 {nombreInscrito ? ` (inscripciones a nombre de ${nombreInscrito})` : ''}. Aun así puedes
-                inscribirte en un taller.
+                inscribirte en un taller o <Link href="/registro">crear tu cuenta</Link>.
               </p>
             )}
           </section>
@@ -85,21 +87,21 @@ export default function Perfil() {
             <p>Todavía no estás inscrito en ningún taller.</p>
           ) : (
             <ul className={estilos.lista}>
-              {misTalleres.map((t) => (
-                <li key={t.id}>
-                  <Link href={`/talleres/${t.id}`}>{t.nombre}</Link> — {formatearFecha(t.fecha)}
+              {misTalleres.map((a) => (
+                <li key={a.taller_id}>
+                  <Link href={`/talleres/${a.taller_id}`}>{a.taller}</Link> — {formatearFecha(a.fecha)} · {estadoTaller(a)}
                 </li>
               ))}
             </ul>
           )}
 
           <h2>Talleres con lugar disponible</h2>
-                    {disponibles.length === 0 ? (
+          {disponibles.length === 0 ? (
             <p>No hay más talleres con lugar.</p>
           ) : (
             <ul className={estilos.lista}>
               {disponibles.map((t) => {
-                const lugares = t.cupo - t.asistencias.length;
+                const lugares = t.cupo - t.asistentes;
                 return (
                   <li key={t.id}>
                     {t.nombre} — {lugares} {lugares === 1 ? 'lugar' : 'lugares'} ·{' '}

@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-//vamos a construir un servidor en express
-
 export default function MiniServidor(){
     const [saludo, setSaludo] = useState('');
     const [texto, setTexto] = useState('');
@@ -18,19 +16,22 @@ export default function MiniServidor(){
     async function enviarEco(e) {
         e.preventDefault();
         setError('');
-        const respuesta = await fetch('/mini/eco',  {
-            method : 'POST',
-            headers : {'Content-Type': 'application/json'},
-            body : JSON.stringify({texto}),
-        });
-        const data = await res.json();
-        if(res.ok){
-            setEco(data.eco);
-            setTexto('');
-        }else{
-            setError(`Error: ${data.error}`);
+        try{
+            const res = await fetch('/mini/eco', {
+                method : 'POST',
+                headers : {'Content-Type': 'application/json'},
+                body : JSON.stringify({texto}),
+            });
+            const data = await res.json();
+            if(res.ok){
+                setEco(data.eco);
+                setTexto('');
+            }else{
+                setError(`Error: ${data.error}`);
+            }
+        }catch{
+            setError('El mini servidor no responde, por favor verificalo');
         }
-        
     }
 
     return(
@@ -40,13 +41,12 @@ export default function MiniServidor(){
             <p>{saludo}</p>
 
             <h2>POST /eco</h2>
-            <form onSubmit={enviarEco} value={texto} onChange={(e) =>setTexto(e.target.value)}>
+            <form onSubmit={enviarEco} className="formulario">
+                <input placeholder="Escribe un texto" value={texto} onChange={(e) => setTexto(e.target.value)} />
                 <button type="submit">Enviar</button>
-
             </form>
             {eco && <p>El servidor respondio: {eco}</p>}
-            {eco && <p className='error' >{error}</p>}
+            {error && <p className="error">{error}</p>}
         </main>
     )
-
 }

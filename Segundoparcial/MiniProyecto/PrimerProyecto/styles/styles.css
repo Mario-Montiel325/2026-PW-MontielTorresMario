@@ -60,6 +60,7 @@ button:disabled {
  
 table {
   width: 100%;
+  margin-bottom: 24px;
   border-collapse: collapse;
   background: #fff;
 }

@@ -2,25 +2,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { pedirJSON } from '../../lib/api';
-import { formatearFecha, ocultarBoleta } from '../../lib/formato';
-import { validarBoleta } from '../../lib/validaciones';
+import { formatearFecha, formatearFechaHora, ocultarBoleta, yaEmpezo } from '../../lib/formato';
+import { validarBoleta, validarNombre } from '../../lib/validaciones';
 import estilos from '../../styles/Talleres.module.css';
 
-// /talleres/[id] — detalle de un taller.
-// PASO 4: datos del taller, barra de lugares y lista de inscritos
-//         (GET /api/talleres/:id y GET /api/talleres/:id/asistencias).
-// PASO 5: formulario de inscripción (POST /api/asistencias).
 export default function DetalleTaller() {
   const router = useRouter();
   const { id } = router.query;
 
   const [taller, setTaller] = useState(null);
-  const [asistencias, setAsistencias] = useState([]);
+  const [alumnos, setAlumnos] = useState([]);
   const [errorCarga, setErrorCarga] = useState('');
 
   const [nombre, setNombre] = useState('');
   const [boleta, setBoleta] = useState('');
-  const [errorForm, setErrorForm] = useState('');
+  const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [enviando, setEnviando] = useState(false);
 
@@ -34,47 +30,47 @@ export default function DetalleTaller() {
   async function cargar() {
     try {
       setTaller(await pedirJSON(`/talleres/${id}`));
-      setAsistencias(await pedirJSON(`/talleres/${id}/asistencias`));
+      setAlumnos(await pedirJSON(`/talleres/${id}/asistencias`));
       setErrorCarga('');
     } catch (err) {
       setErrorCarga(err.message);
     }
   }
 
-  const ocupados = asistencias.length;
-  const libres = taller ? Math.max(0, taller.cupo - ocupados) : 0;
-  const lleno = taller !== null && libres === 0;
-
-  async function inscribir(e) {
-    e.preventDefault();
-    setErrorForm('');
+  async function enviar(datos, mensaje) {
+    setError('');
     setExito('');
-
-    const nombreLimpio = nombre.trim();
-    const boletaLimpia = boleta.trim();
-    if (!nombreLimpio) return setErrorForm('Escribe tu nombre.');
-    if (!validarBoleta(boletaLimpia)) return setErrorForm('La boleta debe tener 10 dígitos.');
-    if (asistencias.some((a) => a.boleta === boletaLimpia)) return setErrorForm('Esa boleta ya está inscrita en este taller.');
-    if (lleno) return setErrorForm('El taller ya no tiene lugares.');
-
     setEnviando(true);
     try {
       await pedirJSON('/asistencias', {
         method: 'POST',
-        body: JSON.stringify({ taller_id: id, nombre_alumno: nombreLimpio, boleta: boletaLimpia }),
+        body: JSON.stringify({ taller_id: id, ...datos }),
       });
-      setExito(`¡Listo! ${nombreLimpio} quedó inscrito(a) en el taller.`);
-      setNombre('');
-      setBoleta('');
+      setExito(mensaje);
       await cargar();
+      return true;
     } catch (err) {
-      setErrorForm(err.message);
+      setError(err.message);
+      return false;
     } finally {
       setEnviando(false);
     }
   }
 
-    if (errorCarga) {
+  async function borrar(ruta, pregunta, mensaje) {
+    if (pregunta && !confirm(pregunta)) return;
+    setError('');
+    setExito('');
+    try {
+      await pedirJSON(ruta, { method: 'DELETE' });
+      setExito(mensaje);
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  if (errorCarga) {
     return (
       <main>
         <p className="error">{errorCarga}</p>
@@ -84,7 +80,65 @@ export default function DetalleTaller() {
   }
   if (!taller) return <main><p>Cargando taller…</p></main>;
 
+  const empezo = yaEmpezo(taller.fecha);
+  const ocupados = alumnos.length;
+  const libres = Math.max(0, taller.cupo - ocupados);
+  const lleno = libres === 0;
   const porcentaje = Math.min(100, (ocupados / taller.cupo) * 100);
+
+  const inscritos = alumnos.filter((a) => a.inscripcion_id);
+  const vinieron = alumnos.filter((a) => a.llegada_id);
+  const faltan = inscritos.filter((a) => !a.llegada_id);
+  const sinInscripcion = alumnos.filter((a) => !a.inscripcion_id);
+
+  async function registrar(e) {
+    e.preventDefault();
+    setError('');
+    setExito('');
+
+    const n = nombre.trim();
+    const b = boleta.trim();
+    if (!validarNombre(n)) return setError('El nombre debe tener de 3 a 100 letras, sin números ni símbolos.');
+    if (!validarBoleta(b)) return setError('La boleta debe tener 10 dígitos.');
+
+    const existente = alumnos.find((a) => a.boleta === b);
+    if (!empezo && existente) return setError('Esa boleta ya está inscrita en este taller.');
+    if (empezo && existente?.llegada_id) return setError('La llegada de esa boleta ya está registrada.');
+    if (!existente && lleno) return setError('El taller ya no tiene lugares.');
+
+    const mensaje = empezo ? `Llegada de ${n} registrada.` : `¡Listo! ${n} quedó inscrito(a) en el taller.`;
+    if (await enviar({ nombre_alumno: n, boleta: b }, mensaje)) {
+      setNombre('');
+      setBoleta('');
+    }
+  }
+
+  function quitar(a) {
+    borrar(
+      `/talleres/${id}/asistencias/${a.boleta}`,
+      `¿Quitar a ${a.nombre_alumno} del taller? Se borra su inscripción y su asistencia.`,
+      `Se quitó a ${a.nombre_alumno} del taller.`
+    );
+  }
+
+  function noVino(a) {
+    borrar(`/asistencias/${a.llegada_id}`, null, `${a.nombre_alumno}: no vino.`);
+  }
+
+  function estado(a) {
+    if (a.llegada_id) return <span className={estilos.exito}>Vino · {formatearFechaHora(a.llego_en)}</span>;
+    return <span className={estilos.lleno}>No vino</span>;
+  }
+
+  const formulario = (
+    <form onSubmit={registrar} className="formulario">
+      <input placeholder="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+      <input placeholder="Boleta (10 dígitos)" value={boleta} onChange={(e) => setBoleta(e.target.value)} />
+      <button type="submit" disabled={enviando}>
+        {enviando ? 'Guardando…' : empezo ? 'Registrar llegada' : 'Inscribirme'}
+      </button>
+    </form>
+  );
 
   return (
     <main>
@@ -107,41 +161,121 @@ export default function DetalleTaller() {
         </p>
       </section>
 
-      <section className={estilos.panel}>
-        <h2>Inscribirme</h2>
-        <form onSubmit={inscribir} className="formulario">
-          <input placeholder="Nombre completo" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-          <input placeholder="Boleta (10 dígitos)" value={boleta} onChange={(e) => setBoleta(e.target.value)} />
-          <button type="submit" disabled={lleno || enviando}>
-            {lleno ? 'Sin lugares' : enviando ? 'Inscribiendo…' : 'Inscribirme'}
-          </button>
-        </form>
-        {errorForm && <p className="error">{errorForm}</p>}
-        {exito && <p className={estilos.exito}>{exito}</p>}
-      </section>
+      {error && <p className="error">{error}</p>}
+      {exito && <p className={estilos.exito}>{exito}</p>}
 
-      <h2>Inscritos ({ocupados})</h2>
-      {ocupados === 0 ? (
-        <p>Todavía no hay inscritos. ¡Sé el primero!</p>
+      {!empezo ? (
+        <>
+          <section className={estilos.panel}>
+            <h2>Inscribirme</h2>
+            {formulario}
+          </section>
+
+          <h2>Inscritos ({inscritos.length})</h2>
+          <p>La lista de asistencia se podrá pasar a partir del {formatearFecha(taller.fecha)}.</p>
+          {inscritos.length === 0 ? (
+            <p>Todavía no hay inscritos. ¡Sé el primero!</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th>Boleta</th>
+                  <th>Inscrito</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {inscritos.map((a, i) => (
+                  <tr key={a.boleta}>
+                    <td>{i + 1}</td>
+                    <td>{a.nombre_alumno}</td>
+                    <td>{ocultarBoleta(a.boleta)}</td>
+                    <td>{formatearFechaHora(a.inscrito_en)}</td>
+                    <td>
+                      <button onClick={() => quitar(a)}>Quitar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Nombre</th>
-              <th>Boleta</th>
-            </tr>
-          </thead>
-          <tbody>
-            {asistencias.map((a, i) => (
-              <tr key={a.id}>
-                <td>{i + 1}</td>
-                <td>{a.nombre_alumno}</td>
-                <td>{ocultarBoleta(a.boleta)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <h2>Lista de asistencia</h2>
+          <div className={estilos.resumen}>
+            <div className={estilos.cifra}>
+              <strong>{inscritos.length}</strong>
+              <span>Inscritos</span>
+            </div>
+            <div className={`${estilos.cifra} ${estilos.cifraVino}`}>
+              <strong>{vinieron.length}</strong>
+              <span>Vinieron</span>
+            </div>
+            <div className={`${estilos.cifra} ${estilos.cifraNoVino}`}>
+              <strong>{faltan.length}</strong>
+              <span>No vinieron</span>
+            </div>
+            {sinInscripcion.length > 0 && (
+              <div className={estilos.cifra}>
+                <strong>{sinInscripcion.length}</strong>
+                <span>Sin inscripción</span>
+              </div>
+            )}
+          </div>
+          {alumnos.length === 0 ? (
+            <p>Nadie se inscribió a este taller.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th>Boleta</th>
+                  <th>Inscripción</th>
+                  <th>¿Vino?</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {alumnos.map((a, i) => (
+                  <tr key={a.boleta}>
+                    <td>{i + 1}</td>
+                    <td>{a.nombre_alumno}</td>
+                    <td>{ocultarBoleta(a.boleta)}</td>
+                    <td>{a.inscripcion_id ? formatearFechaHora(a.inscrito_en) : 'Sin inscripción'}</td>
+                    <td>{estado(a)}</td>
+                    <td>
+                      <button
+                        disabled={enviando || Boolean(a.llegada_id)}
+                        onClick={() =>
+                          enviar({ nombre_alumno: a.nombre_alumno, boleta: a.boleta }, `${a.nombre_alumno}: sí vino.`)
+                        }
+                      >
+                        Sí vino
+                      </button>{' '}
+                      <button
+                        disabled={!a.llegada_id || !a.inscripcion_id}
+                        title={a.inscripcion_id ? '' : 'No estaba inscrito; si no vino, usa Quitar'}
+                        onClick={() => noVino(a)}
+                      >
+                        No vino
+                      </button>{' '}
+                      <button onClick={() => quitar(a)}>Quitar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <section className={estilos.panel}>
+            <h2>Llegó alguien sin inscribirse</h2>
+            {lleno ? <p>El taller ya no tiene lugares.</p> : formulario}
+          </section>
+        </>
       )}
     </main>
   );
