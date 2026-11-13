@@ -96,61 +96,94 @@ function requiereSesion(req, res, next) {
     })
 
     //vamos a autenticarnos
-    app.post('/api/login', async(req, res, next)=>{
-        try{
-            const {usuario, contraseña} = req.body || {};
+    app.post('/api/login', async (req, res, next) => {
+        try {
+            const { usuario, contraseña } = req.body || {};
             const datos = await usuarios.verificar(usuario, contraseña);
-            if(!datos) return res.status(401).json({
+            if (!datos) return res.status(401).json({
                 error: 'Usuario o contraseña incorrectos'
             });
             const antes = req.session.visitas !== undefined ? idCorto(req.sessionID) : null;
             const visitas = req.session.visitas || 0;
 
             //tenemos que guardar los datos de la sesion
-            const guardar = () =>{
+            const guardar = () => {
                 req.session.usuario = datos;
                 req.session.usuario = visitas;
                 req.session.creada = Date.now();
                 req.session.ultimoUso = Date.now();
-                req.session.save((error)=> {
+                req.session.save((error) => {
                     if (error) return next(error);
-                    res.json({usuario:datos, sesionAntes: antes, sesionDespues: idCorto(req.sessionID)});
-                });             
+                    res.json({ usuario: datos, sesionAntes: antes, sesionDespues: idCorto(req.sessionID) });
+                });
             };
 
-            if(config.regenerarAlEntrar){
-                req.session.regenerate((error)=>(error ? next(error) : guardar() ));
-            }else{
+            if (config.regenerarAlEntrar) {
+                req.session.regenerate((error) => (error ? next(error) : guardar()));
+            } else {
                 guardar();
             }
-            
-        }catch(error){
+
+        } catch (error) {
             next(error);
         }
     });
 
-    app.post('/api/logout', (req, res, next)=>{
-        req.session.destroy((error)=>{
-            if(error) return next(error);
+    app.post('/api/logout', (req, res, next) => {
+        req.session.destroy((error) => {
+            if (error) return next(error);
             res.clearCookie(NOMBRE_COOKIE);
-            res.json({mensaje : 'Sesopm cerrada'});
+            res.json({ mensaje: 'Sesopm cerrada' });
         });
     });
 
-    app.get('/api/sesion', requiereSesion, (req, res)=>{
+    app.get('/api/sesion', requiereSesion, (req, res) => {
         const desde = config.rolling ? req.session.ultimoUso : req.session.creada;
         res.json({
-            usuario : req.session.usuario,
-            sesion : idCorto(req.sessionID),
-            expiraEnSegundos : Math.max(0, Math.round((desde + config.maxAge - Date.now())/10000)),
+            usuario: req.session.usuario,
+            sesion: idCorto(req.sessionID),
+            expiraEnSegundos: Math.max(0, Math.round((desde + config.maxAge - Date.now()) / 10000)),
         });
     });
 
-    app.get('/api/perfil', requiereSesion, (req, res)=>{
+    app.get('/api/perfil', requiereSesion, (req, res) => {
         req.session.visitas = (req.session.visitas || 0) + 1;
-        req.json({mensaje : `Hola ${req.session.usuario.nombre} rol: ${req.session.usuario.rol}, visitas: ${req.session.visitas}`});
+        req.json({ mensaje: `Hola ${req.session.usuario.nombre} rol: ${req.session.usuario.rol}, visitas: ${req.session.visitas}` });
     });
 
     //vamos a desarollar una prueba unitaria para verificar con v o f las pruebas ejecutadas
+    app.get('/api/diagnostico/sesiones', async (req, res, next) => {
+        try {
+            const sesiones = await todasLasSesiones(almacen);
+            const lista = Object.entries(sesiones || {}).map(([id, s]) => ({
+                sesion: idCorto(id),
+                esLaTuya: id === req, sessionID,
+                usuario: s.usuario ? s.usuario.usuario : 'Sin iniciar sesion',
+                visitas: s.visitas || 0,
+                expira: s.cookie && s.cookie.expires,
+            }));
+            res.json({ almacen: config.almacen, sesiones: lista });
+
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    app.use(express.static(path.join(__dirname, 'public')));
+
+    app.use((error, req, res, next)=>{
+        console.error(error);
+        res.status(500).json({error: 'Error del servidor'});
+    })
+
+    app.use('/api', (req, res)=> res.status(404).json({error : 'Ruta no encontrada'}));
+
+    return app;
 
 }
+
+module.exports = {crearApp, NOMBRE_COOKIE}
+
+//tarea 1 deberan de realizar una infografia sobre la autentificacion con el uso de jwt y como se implementa para el domingo
+
+//tarea 2 con el uso del archivo que se les va a proveer deberan de completar y realizar las pruebas al ejecicio de sesiones en el archivo llamado xxx par implementar en el archivo demo.js, se evaluara la siguiente clase
