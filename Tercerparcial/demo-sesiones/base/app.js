@@ -187,3 +187,12 @@ module.exports = {crearApp, NOMBRE_COOKIE}
 //tarea 1 deberan de realizar una infografia sobre la autentificacion con el uso de jwt y como se implementa para el domingo
 
 //tarea 2 con el uso del archivo que se les va a proveer deberan de completar y realizar las pruebas al ejecicio de sesiones en el archivo llamado xxx par implementar en el archivo demo.js, se evaluara la siguiente clase
+
+//montado en el servidor y el video ya esta de como moontarlo en servidor
+//deben tener los dos repositorios el del back y el del front y debemos de tener al menos 15 commits por persona 
+//la presentacion va a ser tecnica vender prodcuto bla bla bla
+//nuestra presentacion debe ser tecnica debe ser tal cosa tal revision tal funcion y las preguntas van directamente al codigo decidimos esta arquitectura por esto y no importa si no esta en un servidor mono y 15 por cada repositorio
+
+//tiene que ser en next AHUEVO
+
+//la movil la tengo solo yo
