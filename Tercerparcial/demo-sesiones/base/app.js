@@ -43,7 +43,7 @@ function crearApp(config, pool) {
         { createDatabaseTable: false, clearExpired: false },
         pool,
       );
-  app.locals.almace = almacen;
+  app.locals.almacen = almacen;
 
   app.use(
     session({
@@ -237,6 +237,14 @@ function crearApp(config, pool) {
     );
   }
 
+  //firmamos el token y lo registramos en la bd para que el admin pueda ver quien tiene sesion
+  async function emitirToken(usuario) {
+    const token = firmarToken(usuario);
+    const { jti, iat, exp } = jwt.decode(token);
+    await tokens.registrar(jti, usuario.usuario, usuario.rol, iat, exp);
+    return token;
+  }
+
   //tenemos que hacer una funcion que se encargue de validar a quien necesita o no un token dentro de la aplicación entre el middleware
   async function requiereJWT(req, res, next) {
     const encabezado = req.headers.authorization || "";
@@ -288,7 +296,7 @@ function crearApp(config, pool) {
         return res
           .status(401)
           .json({ error: "Usuario o contraseña incorrectos" });
-      res.json({ token: firmarToken(datos), usuario: datos });
+      res.json({ token: await emitirToken(datos), usuario: datos });
     } catch (error) {
       next(error);
     }
@@ -315,9 +323,15 @@ function crearApp(config, pool) {
     },
   );
 
-  app.post("/api/jwt/refresh", requiereJWT, (req, res) => {
-    const { sub, usuario, nombre, rol } = req.jwt;
-    res.json({ token: firmarToken({ id: sub, usuario, nombre, rol }) });
+  //al renovar, el token viejo se revoca para que no queden dos sesiones vivas del mismo usuario
+  app.post("/api/jwt/refresh", requiereJWT, async (req, res, next) => {
+    try {
+      const { sub, usuario, nombre, rol, jti, exp } = req.jwt;
+      if (config.jwtRevocar) await tokens.revocar(jti, usuario, exp);
+      res.json({ token: await emitirToken({ id: sub, usuario, nombre, rol }) });
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.post("/api/jwt/logout", requiereJWT, async (req, res, next) => {
@@ -325,24 +339,67 @@ function crearApp(config, pool) {
       if (config.jwtRevocar) {
         await tokens.revocar(req.jwt.jti, req.jwt.usuario, req.jwt.exp);
         return res.json({
+          revocado: true,
           mensaje:
             "Token revocado en el servidor, se registra en la lista negra",
         });
       }
-      res.json({ mensaje: "El servidor no guarda nada" });
+      res.json({ revocado: false, mensaje: "El servidor no guarda nada" });
     } catch (error) {
       next(error);
     }
   });
 
-  app.get("/api/jwt/diagnostico/revocados", async (req, res, next) => {
-    try {
-      const lista = config.jwtRevocar ? await tokens.listar() : [];
-      res.json({ revocar: config.jwtRevocar, tokens: lista });
-    } catch (error) {
-      next(error);
-    }
-  });
+  //solo el admin puede ver la lista negra
+  app.get(
+    "/api/jwt/diagnostico/revocados",
+    requiereJWT,
+    requieroRolJWT("admin"),
+    async (req, res, next) => {
+      try {
+        const lista = config.jwtRevocar ? await tokens.listar() : [];
+        res.json({ revocar: config.jwtRevocar, tokens: lista });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  //el admin ve los tokens que siguen vivos (no vencidos y no revocados)
+  app.get(
+    "/api/jwt/admin/sesiones",
+    requiereJWT,
+    requieroRolJWT("admin"),
+    async (req, res, next) => {
+      try {
+        res.json({ tuyo: req.jwt.jti, tokens: await tokens.activos() });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  //el admin puede cerrar la sesion de otro usuario mandando su token a la lista negra
+  app.post(
+    "/api/jwt/admin/revocar",
+    requiereJWT,
+    requieroRolJWT("admin"),
+    async (req, res, next) => {
+      try {
+        if (!config.jwtRevocar) {
+          return res
+            .status(400)
+            .json({ error: "La revocacion esta apagada (jwtRevocar en config.js)" });
+        }
+        const token = await tokens.buscar((req.body || {}).jti);
+        if (!token) return res.status(404).json({ error: "Token no encontrado" });
+        await tokens.revocar(token.jti, token.usuario, token.exp);
+        res.json({ mensaje: `Sesion de ${token.usuario} cerrada` });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   app.use(express.static(path.join(__dirname, "public")));
 

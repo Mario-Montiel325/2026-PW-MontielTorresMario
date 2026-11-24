@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Demo de sesiones</title>
+  <title>Demo de sesiones y JWT</title>
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
   <header>
-    <h1>Demo de sesiones · CECyT 9</h1>
-    <p>Abre <strong>F12</strong> y ten a la mano las pestañas <strong>Network</strong> (Red) y <strong>Application</strong> (Aplicación → Cookies).</p>
+    <h1>Demo de sesiones y JWT · CECyT 9</h1>
+    <p>Abre <strong>F12</strong> y ten a la mano las pestañas <strong>Network</strong> (Red) y <strong>Application</strong> (Aplicación → Cookies y Local Storage).</p>
   </header>
 
   <main>
@@ -65,8 +65,54 @@
       <h2>5 · Configuración actual (<code>config.js</code>)</h2>
       <pre id="config">…</pre>
     </section>
+
+    <section class="tarjeta" id="tarjeta-jwt">
+      <h2>6 · Sesión con JWT (token)</h2>
+      <p id="estado-token" class="estado sin-sesion">Sin token</p>
+      <p class="detalle">
+        Usa el usuario y la contraseña de la sección 2. Aquí no hay cookie: el token se guarda en
+        <code>localStorage</code> y este JavaScript lo manda en <code>Authorization: Bearer ...</code>
+      </p>
+      <div class="botones">
+        <button type="button" id="btn-login-jwt">POST /api/jwt/login</button>
+        <button type="button" data-jwt-metodo="GET" data-jwt-url="/api/jwt/perfil">GET /api/jwt/perfil</button>
+        <button type="button" data-jwt-metodo="GET" data-jwt-url="/api/jwt/perfil" data-jwt-sintoken="true">GET /api/jwt/perfil SIN token</button>
+        <button type="button" data-jwt-metodo="GET" data-jwt-url="/api/jwt/admin/reporte">GET /api/jwt/admin/reporte</button>
+        <button type="button" data-jwt-metodo="POST" data-jwt-url="/api/jwt/refresh">POST /api/jwt/refresh</button>
+        <button type="button" data-jwt-metodo="POST" data-jwt-url="/api/jwt/logout" class="peligro">POST /api/jwt/logout</button>
+        <button type="button" id="btn-alterar-rol">Alterar: rol → admin</button>
+        <button type="button" id="btn-borrar-token" class="peligro">Borrar token del navegador</button>
+      </div>
+
+      <p class="detalle">
+        El token completo:
+        <span class="segmento-cabecera">cabecera</span> ·
+        <span class="segmento-payload">payload</span> ·
+        <span class="segmento-firma">firma</span>
+      </p>
+      <pre id="token-coloreado">—</pre>
+      <p class="detalle">Lo que viene adentro (payload). Cualquiera lo puede leer, por eso no lleva la contraseña:</p>
+      <pre id="payload-decodificado">—</pre>
+      <ol id="bitacora-jwt" class="bitacora" reversed></ol>
+
+      <p id="aviso-admin" class="detalle">Inicia sesión con JWT como admin para ver las sesiones activas y la lista negra.</p>
+      <div id="zona-admin" hidden>
+        <h3>Sesiones JWT activas (tabla <code>tokens_emitidos</code>)</h3>
+        <table>
+          <thead><tr><th>Usuario</th><th>Rol</th><th>Vence</th><th></th></tr></thead>
+          <tbody id="tabla-activos"><tr><td colspan="4">(sin sesiones activas)</td></tr></tbody>
+        </table>
+        <h3>Lista negra (tabla <code>tokens_revocados</code>)</h3>
+        <table>
+          <thead><tr><th>Usuario</th><th>El token vence</th></tr></thead>
+          <tbody id="tabla-revocados"><tr><td colspan="2">(sin tokens revocados)</td></tr></tbody>
+        </table>
+        <button id="btn-actualizar-jwt" type="button">Actualizar</button>
+      </div>
+    </section>
   </main>
 
   <script src="demo.js"></script>
+  <script src="jwt.js"></script>
 </body>
 </html>

@@ -21,4 +21,11 @@ module.exports = {
 
   // true: al iniciar sesión el servidor cambia el id de la sesión (protege contra la fijación de sesión).
   regenerarAlEntrar: true,
+
+  // Cuánto dura el JWT, en segundos.
+  jwtExpiraSeg: 120,
+
+  // true: al hacer logout el jti del token se guarda en la tabla tokens_revocados (lista negra).
+  // false: el servidor no guarda nada y el token sigue sirviendo hasta que vence.
+  jwtRevocar: true,
 };

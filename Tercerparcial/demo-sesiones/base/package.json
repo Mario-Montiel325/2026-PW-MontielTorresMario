@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "bd": "node bd/crear-bd.js",
     "probar": "node pruebas/probar.js"
   },
   "dependencies": {
