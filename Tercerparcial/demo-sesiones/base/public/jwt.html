@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Demo de JWT</title>
+    <link rel="stylesheet" href="estilos.css" />
+</head>
+
+<body>
+    <header>
+        <h1>Demo de JWT · CECyT 9</h1>
+        <p>
+            Abre <strong>F12</strong>: pestañas <strong>Network</strong> (Red),
+            <strong>Application</strong> (Aplicación → Local Storage y Cookies) y
+            <strong>Console</strong>.
+        </p>
+        <p>
+            <a href="index.html" style="color: #fff">← Semana 12: la demo con sesión y cookie</a>
+        </p>
+    </header>
+
+    <main>
+        <section class="tarjeta" id="tarjeta-token">
+            <h2>1 · Tu token</h2>
+            <p id="estado-token" class="estado sin-sesion">Sin token</p>
+
+            <p class="detalle">
+                El token que tiene guardado este navegador (en
+                <code>localStorage</code>, no en una cookie). Lo puedes editar a mano,
+                pegar otro y pulsar "Usar este token":
+            </p>
+            <textarea id="token-crudo" rows="3"
+                style="width: 100%; font-family: monospace; font-size: 0.8rem"></textarea>
+
+            <div class="botones">
+                <button type="button" id="btn-usar-token">Usar este token</button>
+                <button type="button" id="btn-alterar-rol">
+                    Alterar: rol → admin
+                </button>
+                <button type="button" id="btn-borrar-token" class="peligro">
+                    Borrar token (solo navegador)
+                </button>
+            </div>
+
+            <p class="detalle">
+                <span class="segmento-cabecera">cabecera</span> ·
+                <span class="segmento-payload">payload</span> ·
+                <span class="segmento-firma">firma</span>
+            </p>
+
+            <pre id="token-coloreado">—</pre>
+
+            <p class="detalle">Cabecera (decodificada):</p>
+            <pre id="cabecera-decodificada">—</pre>
+            <p class="detalle">Payload (decodificado):</p>
+            <pre id="payload-decodificado">—</pre>
+        </section>
+
+        <section class="tarjeta">
+            <h2>2 · Iniciar sesión con JWT</h2>
+            <form id="form-login-jwt">
+                <label>Usuario
+                    <select id="usuario-jwt">
+                        <option value="ana">ana (alumno)</option>
+                        <option value="luis">luis (alumno)</option>
+                        <option value="admin">admin (administrador)</option>
+                    </select>
+                </label>
+                <label>Contraseña
+                    <input id="contrasena-jwt" type="password" value="ana12345" autocomplete="off" />
+                </label>
+                <button type="submit">Entrar (POST /api/jwt/login)</button>
+            </form>
+            <p class="detalle">
+                Los mismos usuarios de la semana 12 (tabla <code>usuarios</code>):
+                <code>ana12345</code>, <code>luis12345</code> y
+                <code>admin12345</code>.
+            </p>
+        </section>
+
+        <section class="tarjeta">
+            <h2>3 · Pedirle cosas al servidor</h2>
+            <p class="detalle">
+                Cada petición manda <code>Authorization: Bearer &lt;token&gt;</code>.
+                Lo pone este JavaScript, no el navegador.
+            </p>
+            <div class="botones">
+                <button type="button" data-metodo="GET" data-url="/api/jwt/perfil">
+                    GET /api/jwt/perfil
+                </button>
+                <button type="button" data-metodo="GET" data-url="/api/jwt/perfil" data-sintoken="true">
+                    GET /api/jwt/perfil SIN token
+                </button>
+                <button type="button" data-metodo="GET" data-url="/api/jwt/admin/reporte">
+                    GET /api/jwt/admin/reporte
+                </button>
+                <button type="button" data-metodo="POST" data-url="/api/jwt/refresh">
+                    POST /api/jwt/refresh
+                </button>
+                <button type="button" data-metodo="POST" data-url="/api/jwt/logout" class="peligro">
+                    POST /api/jwt/logout
+                </button>
+            </div>
+            <ol id="bitacora-jwt" class="bitacora" reversed></ol>
+        </section>
+
+        <section class="tarjeta">
+            <h2>4 · Lo que guarda el servidor</h2>
+            <p id="filas-sessions" class="estado-almacen">…</p>
+            <p class="detalle">
+                Lista negra (tabla <code>tokens_revocados</code>):
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>El token vence</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-revocados">
+                    <tr>
+                        <td colspan="2">(sin tokens revocados)</td>
+                    </tr>
+                </tbody>
+            </table>
+            <button id="btn-actualizar-revocados" type="button" class="peligro">
+                Actualizar
+            </button>
+        </section>
+
+        <section class="tarjeta">
+            <h2>5 · Lo que puede leer el JavaScript de esta página</h2>
+            <p class="detalle">
+                Si alguien lograra meter un script (XSS), esto es lo que podría robar:
+            </p>
+            <p class="detalle"><code>localStorage.getItem('token')</code>:</p>
+            <pre id="local-storage-token">(vacío)</pre>
+            <p class="detalle"><code>document.cookie</code>:</p>
+            <pre id="cookie-js-jwt">(vacío)</pre>
+        </section>
+
+        <section class="tarjeta">
+            <h2>6 · Configuración actual (<code>config.js</code>)</h2>
+            <pre id="config-jwt">…</pre>
+        </section>
+    </main>
+
+    <script src="jwt.js"></script>
+</body>
+
+</html>

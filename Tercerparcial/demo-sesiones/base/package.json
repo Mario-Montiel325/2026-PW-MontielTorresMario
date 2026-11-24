@@ -5,7 +5,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "bd": "node bd/crear-bd.js",
     "probar": "node pruebas/probar.js"
   },
   "dependencies": {
@@ -14,6 +13,7 @@
     "express": "^4.21.2",
     "express-mysql-session": "^3.0.3",
     "express-session": "^1.18.1",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.24.6"
   }
 }
